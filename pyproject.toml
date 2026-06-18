@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fly_in"
+version = "1.0"
+description = "Drone Pathfinding Solver "
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "manferre"}
+]
+dependencies = [
+    "pydantic",
+    "pygame",
+]
+
+[dependency-groups]
+dev = [
+    "flake8",
+    "mypy",
+    "build",
+]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["pygame.*", "pygame"]
+ignore_missing_imports = true
