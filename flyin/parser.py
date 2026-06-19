@@ -32,18 +32,18 @@ class Parser:
             i += 1
 
         if i < len(line) and line[i] == "[":
-            while i < len(line) and line[i] != "]":
+            while i < len(line):
                 raw_metadata += line[i]
                 i += 1
 
-            if i < len(line) and line[i] == "]":
-                raw_metadata += line[i]
-
-        if not raw_metadata or raw_metadata[-1] != "]":
-            raise FileError(f"{metadata_format} got {raw_metadata}")
+        if not raw_metadata:
+            return ""
+         
+        if raw_metadata[-1] != "]":
+            raise FileError(f"{metadata_format}.\n Got: {raw_metadata}")
 
         if "[" in raw_metadata[1:-1] or "]" in raw_metadata[1:-1]:
-            raise FileError(f"{metadata_format} got {raw_metadata}")
+            raise FileError(f"{metadata_format}.\n Got: {raw_metadata}")
 
         return raw_metadata
     
@@ -68,7 +68,7 @@ class Parser:
         if tag == "connection":
             if not raw_maindata or len(main_data_parts) != 2:
                 raise FileError("Connection definition is incomplete.\n"
-                            f"Expected: connection: <name1> <name2> [metadata]"
+                            f"Expected: connection: <name1>-<name2> [metadata]"
                             f"\nGot: {line}")
         
         return raw_maindata
@@ -164,6 +164,7 @@ class Parser:
     @classmethod
     def parse_map(cls, file: str) -> Map:
         line_number: int = 0
+        parsed_map: Map | None = None
 
         try:
             with open(file, "r") as f:
@@ -189,14 +190,10 @@ class Parser:
                                             f" '{line.strip()}': {e}")
                     
                     if parts[0] in {"start_hub:", "end_hub:", "hub:"}:
-
+                        pass
 
                     elif parts[0] == "connection":
-                    
-
-                        
-                    
-                    
+                        pass
 
         except FileNotFoundError()
 
