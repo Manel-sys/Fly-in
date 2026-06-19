@@ -69,10 +69,10 @@ def get_metadata(line: str) -> str:
         return ""
 
     if raw_metadata[-1] != "]":
-        raise ValueError(f"{metadata_format}\n Got: {raw_metadata}")
+        raise FileError(f"{metadata_format}\n Got: {raw_metadata}")
 
     if "[" in raw_metadata[1:-1] or "]" in raw_metadata[1:-1]:
-        raise ValueError(f"{metadata_format}\n Got: {raw_metadata}")
+        raise FileError(f"{metadata_format}\n Got: {raw_metadata}")
 
     return raw_metadata
 
@@ -91,15 +91,15 @@ def get_maindata(tag: str, line: str) -> str:
 
     if tag == "zone":
         if not raw_maindata or len(main_data_parts) != 4:
-            raise ValueError("Zone definition is incomplete.\n"
-                             f"Expected: hub_tag: <name> <x> <y> [metadata]"
-                             f"\nGot: {line}")
+            raise FileError("Zone definition is incomplete.\n"
+                            f"Expected: hub_tag: <name> <x> <y> [metadata]"
+                            f"\nGot: {line}")
 
     if tag == "connection":
         if not raw_maindata or len(main_data_parts) != 2:
-            raise ValueError("Connection definition is incomplete.\n"
-                             f"Expected: connection: <name1> <name2> [metadata]"
-                             f"\nGot: {line}")
+            raise FileError("Connection definition is incomplete.\n"
+                            f"Expected: connection: <name1> <name2> [metadata]"
+                            f"\nGot: {line}")
 
     return raw_maindata
 
@@ -110,8 +110,8 @@ if __name__ == "__main__":
         print(get_metadata("hub: roof1 3 4 "))
         print()
         print(get_maindata("connection", "connection: corridorA-tunnelB [max_link_capacity=2][more stuff]"))
-        print(get_metadata("connection: corridorA-tunnelB [max_link_capacity=2]"))
+        print(get_metadata("connection: corridorA-tunnelB [max_link_capacity=2"))
         print()
         print(parse_zone_metadata("hub: roof1 3 4 [zone=restricted color=red]"))
-    except (ValueError, FileError) as e:
-        print(e)
+    except FileError as e:
+        print(f"{type(e).__name__}: {e}")

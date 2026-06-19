@@ -4,6 +4,7 @@ from .map import Map, MapError
 from .validation_models import ZoneModel, ConnectionModel, ZoneType
 from typing import Any
 
+
 class ParserError(Exception):
     pass
 
@@ -78,10 +79,8 @@ class Parser:
         metadata: dict[str, Any] = {}
         valid_keys: set[str] = {"zone", "color", "max_drones"}
         valid_types: set[str] = {"normal", "blocked", "restricted", "priority"}
-        try:
-            raw_metadata: str = cls.get_metadata(line)[1:-1]
-        except FileError as e:
-            raise FileError(e)
+
+        raw_metadata: str = cls.get_metadata(line)[1:-1]
 
         meta_parts: list[str] = raw_metadata.split()
         for part in meta_parts:
