@@ -19,7 +19,6 @@ class Parser:
                   "[optional_flags]\n"
                   "or: python3 -m flyin <file_path.txt> "
                   "[optional_flags]\n")
-    
 
     @classmethod
     def get_metadata(cls, line: str) -> str:
@@ -38,7 +37,7 @@ class Parser:
 
         if not raw_metadata:
             return ""
-         
+
         if raw_metadata[-1] != "]":
             raise FileError(f"{metadata_format}.\n Got: {raw_metadata}")
 
@@ -46,7 +45,7 @@ class Parser:
             raise FileError(f"{metadata_format}.\n Got: {raw_metadata}")
 
         return raw_metadata
-    
+
     @classmethod
     def get_maindata(cls, tag: str, line: str) -> str:
         i: int = 0
@@ -56,21 +55,22 @@ class Parser:
         while i < len(line) and line[i] not in "[]":
             raw_maindata += line[i]
             i += 1
-        
+
         main_data_parts = raw_maindata.split()
 
         if tag == "zone":
             if not raw_maindata or len(main_data_parts) != 4:
                 raise FileError("Zone definition is incomplete.\n"
-                            f"Expected: hub_tag: <name> <x> <y> [metadata]"
-                            f"\nGot: {line}")
-        
+                                f"Expected: hub_tag: <name> <x> <y> [metadata]"
+                                f"\nGot: {line}")
+
         if tag == "connection":
             if not raw_maindata or len(main_data_parts) != 2:
                 raise FileError("Connection definition is incomplete.\n"
-                            f"Expected: connection: <name1>-<name2> [metadata]"
-                            f"\nGot: {line}")
-        
+                                f"Expected: connection: <name1>-<name2>"
+                                " [metadata]"
+                                f"\nGot: {line}")
+
         return raw_maindata
 
     @classmethod
@@ -89,36 +89,36 @@ class Parser:
                 raise FileError("Invalid format for metadata. Metadata should"
                                 " be provided with key=value pairs, "
                                 f"for example color=grey, got {part}")
-            
+
             meta_part: list[str] = part.split("=")
             if len(meta_part) != 2:
                 raise FileError(f"Invalid key=value pair: '{part}'")
-            
+
             key, value = meta_part[0], meta_part[1]
             if not key or not value:
                 raise FileError(f"Invalid key=value pair: '{part}'")
             if key not in valid_keys:
                 raise FileError("Invalid key provided for metadata. \n"
                                 f"Valid keys are: {valid_keys}")
-            
+
             if key == "zone" and value not in valid_types:
                 raise FileError("Invalid zone_type provided in "
                                 f"metadata segment '{part}'"
                                 f"Available types are: {valid_types}")
-            
+
             if key == "max_drones":
                 if not value.isdigit():
                     raise FileError(f"Invalid max_drones value: '{value}'."
-                                     "Must be a positive integer.")
-                
+                                    "Must be a positive integer.")
+
                 metadata[key] = int(value)
             elif key == "zone":
                 metadata["zone_type"] = value
             elif key == "color":
                 metadata["zone_color"] = value
-        
+
         return metadata
-    
+
     @classmethod
     def parse_zone_maindata(cls, line: str) -> dict[str, Any]:
         maindata: dict[str, Any] = {}
@@ -126,8 +126,7 @@ class Parser:
             raw_maindata: str = cls.get_maindata("zone", line)
         except FileError as e:
             raise FileError(e)
-        
-    
+
     @classmethod
     def parse(cls) -> tuple[dict[str, bool], Map]:
 
@@ -174,29 +173,28 @@ class Parser:
 
                     if not line:
                         continue
-                    
+
                     parts = line.split()
-                    
+
                     if parsed_map is None:
                         if len(parts) != 2 or parts[0] != "nb_drones:":
                             raise FileError("First line of file should be:\n"
                                             "nb_drones: <positive_int> got "
                                             f"{' '.join(parts)}")
-                    
+
                         try:
                             parsed_map: Map = Map(parts[1].strip())
                         except MapError as e:
                             raise FileError(f"Line {line_number} -"
                                             f" '{line.strip()}': {e}")
-                    
+
                     if parts[0] in {"start_hub:", "end_hub:", "hub:"}:
                         pass
 
                     elif parts[0] == "connection":
                         pass
 
-        except FileNotFoundError()
+        except FileNotFoundError as e:
+            raise ParserError(e)
 
         return Map
-
-    
