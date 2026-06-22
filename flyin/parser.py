@@ -120,11 +120,18 @@ class Parser:
 
     @classmethod
     def parse_zone_maindata(cls, line: str) -> dict[str, Any]:
-        maindata: dict[str, Any] = {}
+        maindata: list[str, Any] = {}
+        raw_maindata: str = cls.get_maindata("zone", line)
+
+        main_parts: list[str] = raw_maindata.split()[1:]
         try:
-            raw_maindata: str = cls.get_maindata("zone", line)
-        except FileError as e:
-            raise FileError(e)
+            x: int = int(main_parts[1])
+            y: int = int(main_parts[2])
+        except ValueError as e:
+            raise FileError("Invalid coordinates provided in zone definition."
+                            f"\nGot: {}")
+        maindata["name"] = main_parts[0]
+        
 
     @classmethod
     def parse(cls) -> tuple[dict[str, bool], Map]:
@@ -182,7 +189,7 @@ class Parser:
                                             f"{' '.join(parts)}")
 
                         try:
-                            parsed_map: Map = Map(parts[1].strip())
+                            parsed_map = Map(parts[1].strip())
                         except MapError as e:
                             raise FileError(f"Line {line_number} -"
                                             f" '{line.strip()}': {e}")

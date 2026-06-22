@@ -110,7 +110,7 @@ if __name__ == "__main__":
         print(get_metadata("hub: roof1 3 4 "))
         print()
         print(get_maindata("connection", "connection: corridorA-tunnelB [max_link_capacity=2][more stuff]"))
-        print(get_metadata("connection: corridorA-tunnelB [max_link_capacity=2"))
+        print(get_metadata("connection: corridorA-tunnelB [max_link_capacity=2]"))
         print()
         print(parse_zone_metadata("hub: roof1 3 4 [zone=restricted color=red]"))
     except FileError as e:
