@@ -87,31 +87,120 @@ def get_maindata(tag: str, line: str) -> str:
         i += 1
 
     main_data_parts = raw_maindata.split()
-    print(main_data_parts)
 
     if tag == "zone":
         if not raw_maindata or len(main_data_parts) != 4:
-            raise FileError("Zone definition is incomplete.\n"
+            raise FileError("Zone definition is invalid.\n"
                             f"Expected: hub_tag: <name> <x> <y> [metadata]"
                             f"\nGot: {line}")
 
     if tag == "connection":
         if not raw_maindata or len(main_data_parts) != 2:
-            raise FileError("Connection definition is incomplete.\n"
+            raise FileError("Connection definition is invalid.\n"
                             f"Expected: connection: <name1> <name2> [metadata]"
                             f"\nGot: {line}")
 
     return raw_maindata
 
 
+def parse_zone_maindata(line: str) -> dict[str, Any]:
+    maindata: dict[str, Any] = {}
+    valid_hub_tags: set[str] = {"hub:", "start_hub:", "end_hub:"}
+    raw_maindata: str = get_maindata("zone", line)
+
+    main_parts: list[str] = raw_maindata.split()
+
+    if main_parts[0] not in valid_hub_tags:
+        raise FileError("Invalid hub_tag provided in zone definition."
+                        f"\nGot: {main_parts[0]}"
+                        f"\nValid tags are: {valid_hub_tags}")
+    try:
+        x: int = int(main_parts[2])
+        y: int = int(main_parts[3])
+    except ValueError:
+        raise FileError("Invalid coordinates provided in zone definition."
+                        f"\nGot: {main_parts[2]} and {main_parts[3]}\n"
+                        "Expected two int values")
+    maindata["name"] = main_parts[1]
+    maindata["coordinates"] = x, y
+
+    return maindata
+
+
+def parse_connection_maindata(line: str) -> dict[str, Any]:
+    maindata: dict[str, Any] = {}
+    raw_maindata: str = get_maindata("connection", line)
+    main_parts: list[str] = raw_maindata.split()
+
+    if main_parts[0] != "connection:":
+        raise FileError("Invalid connection_tag in connection definiton."
+                        f"\nGot: {main_parts[0]} Expected: 'connection:'")
+    if "-" not in main_parts[1]:
+        raise FileError("Invalid connection defition."
+                        f"\nGot: {main_parts[1]}"
+                        "\nExpected: <name1>-<name2>")
+    else:
+        zone_names: list[str] = main_parts[1].split("-", 1)
+
+        maindata["zone1"] = zone_names[0]
+        maindata["zone2"] = zone_names[1]
+
+    return maindata
+
+
+def parse_connection_metadata(line: str) -> dict[str, Any]:
+    metadata: dict[str, Any] = {}
+    raw_metadata: str = get_metadata(line)[1:-1]
+
+    metaparts: list[str] = raw_metadata.split()
+
+    for part in metaparts:
+        if "=" not in part:
+            raise FileError("Invalid format for metadata. Metadata should"
+                            " be provided with key=value pairs, "
+                            f"got {part}")
+
+        meta_part: list[str] = part.split("=")
+        if len(meta_part) != 2:
+            raise FileError(f"Invalid key=value pair: '{part}'")
+
+        key, value = meta_part[0], meta_part[1]
+
+        if key != "max_link_capacity":
+            raise FileError("Invalid key provided for metadata.\n"
+                            "Valid keys are: 'max_link_capacity'")
+        else:
+            if key in metadata:
+                raise FileError(f"Duplicate key found in metadata {key}")
+
+            if not value.isdigit():
+                raise FileError(f"Invalid max_link_capacity value: {value}"
+                                "\nMust be a positive integer.")
+
+            metadata["max_link_capacity"] = value
+
+    return metadata
+
+
 if __name__ == "__main__":
     try:
+        print("------------------------------------------")
+        print("Testing get_maindata and get_metadata")
         print(get_maindata("zone", "hub: roof1 3 4 [zone=restricted color=red]"))
         print(get_metadata("hub: roof1 3 4 "))
-        print()
         print(get_maindata("connection", "connection: corridorA-tunnelB [max_link_capacity=2][more stuff]"))
         print(get_metadata("connection: corridorA-tunnelB [max_link_capacity=2]"))
-        print()
+        print("-----------------------------------------------------")
+        print("Testing parse_zone_metadata and parse_zone_maindata")
+        print(parse_zone_metadata("hub: roof1 3 4 "))
         print(parse_zone_metadata("hub: roof1 3 4 [zone=restricted color=red]"))
+        print(parse_zone_maindata("hub: roof1 3 4 [zone=restricted color=red]"))
+        # print(parse_zone_maindata("hub: roof1 3.4 4 [zone=restricted color=red]"))
+        print(parse_zone_maindata("hub: roof-1 3 4 [zone=restricted color=red]"))
+        print("------------------------------------------------------")
+        print("Testing parse_connection_maindata and parse_connection_metadata")
+        print(parse_connection_maindata("connection: corridorA-tunnelB [max_link_capacity=2][more stuff]"))
+        print(parse_connection_metadata("connection: corridorA-tunnelB [max_link_capacity=2]"))
+        print(parse_connection_metadata("connection: corridorA-tunnelB"))
     except FileError as e:
         print(f"{type(e).__name__}: {e}")

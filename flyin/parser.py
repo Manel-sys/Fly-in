@@ -1,7 +1,7 @@
 import sys
 from pydantic import ValidationError
 from .map import Map, MapError
-from .validation_models import ZoneModel, ConnectionModel, ZoneType
+from .validation_models import ZoneModel, ConnectionModel
 from typing import Any
 
 
@@ -61,13 +61,13 @@ class Parser:
 
         if tag == "zone":
             if not raw_maindata or len(main_data_parts) != 4:
-                raise FileError("Zone definition is incomplete.\n"
+                raise FileError("Zone definition is invalid.\n"
                                 f"Expected: hub_tag: <name> <x> <y> [metadata]"
                                 f"\nGot: {line}")
 
         if tag == "connection":
             if not raw_maindata or len(main_data_parts) != 2:
-                raise FileError("Connection definition is incomplete.\n"
+                raise FileError("Connection definition is invalid.\n"
                                 f"Expected: connection: <name1>-<name2>"
                                 " [metadata]"
                                 f"\nGot: {line}")
@@ -97,7 +97,7 @@ class Parser:
             if not key or not value:
                 raise FileError(f"Invalid key=value pair: '{part}'")
             if key not in valid_keys:
-                raise FileError("Invalid key provided for metadata. \n"
+                raise FileError("Invalid key provided for metadata.\n"
                                 f"Valid keys are: {valid_keys}")
 
             if key == "zone" and value not in valid_types:
@@ -109,29 +109,101 @@ class Parser:
                 if not value.isdigit():
                     raise FileError(f"Invalid max_drones value: '{value}'."
                                     "Must be a positive integer.")
+                elif key in metadata:
+                    raise FileError(f"Duplicate key found in metadata {key}")
 
                 metadata[key] = int(value)
             elif key == "zone":
+                if "zone_type" in metadata:
+                    raise FileError(f"Duplicate key found in metadata {key}")
                 metadata["zone_type"] = value
             elif key == "color":
+                if "zone_color" in metadata:
+                    raise FileError(f"Duplicate key found in metadata {key}")
                 metadata["zone_color"] = value
 
         return metadata
 
     @classmethod
     def parse_zone_maindata(cls, line: str) -> dict[str, Any]:
-        maindata: list[str, Any] = {}
+        maindata: dict[str, Any] = {}
+        valid_hub_tags: set[str] = {"hub:", "start_hub:", "end_hub:"}
         raw_maindata: str = cls.get_maindata("zone", line)
 
-        main_parts: list[str] = raw_maindata.split()[1:]
+        main_parts: list[str] = raw_maindata.split()
+        if main_parts[0] not in valid_hub_tags:
+            raise FileError("Invalid hub_tag provided in zone definition."
+                            f"\nGot: {main_parts[0]}"
+                            f"\nValid tags are: {valid_hub_tags}")
+
         try:
-            x: int = int(main_parts[1])
-            y: int = int(main_parts[2])
-        except ValueError as e:
+            x: int = int(main_parts[2])
+            y: int = int(main_parts[3])
+        except ValueError:
             raise FileError("Invalid coordinates provided in zone definition."
-                            f"\nGot: {}")
-        maindata["name"] = main_parts[0]
-        
+                            f"\nGot: {main_parts[2]} and {main_parts[3]}\n"
+                            "Expected two int values")
+
+        maindata["name"] = main_parts[1]
+        maindata["coordinates"] = x, y
+
+        return maindata
+
+    @classmethod
+    def parse_connection_maindata(cls, line: str) -> dict[str, Any]:
+        maindata: dict[str, Any] = {}
+        raw_maindata: str = cls.get_maindata("connection", line)
+
+        main_parts: list[str] = raw_maindata.split()
+        if main_parts[0] != "connection:":
+            raise FileError("Invalid connection_tag in connection definiton."
+                            f"\nGot: {main_parts[0]} Expected: 'connection:'")
+
+        if "-" not in main_parts[1]:
+            raise FileError("Invalid connection defition."
+                            f"\nGot: {main_parts[1]}"
+                            "\nExpected: <name1>-<name2>")
+        else:
+            zone_names: list[str] = main_parts[1].split("-", 1)
+
+            maindata["zone1"] = zone_names[0]
+            maindata["zone2"] = zone_names[1]
+
+        return maindata
+
+    @classmethod
+    def parse_connection_metadata(cls, line: str) -> dict[str, Any]:
+        metadata: dict[str, Any] = {}
+        raw_metadata: str = cls.get_metadata(line)[1:-1]
+
+        metaparts: list[str] = raw_metadata.split()
+
+        for part in metaparts:
+            if "=" not in part:
+                raise FileError("Invalid format for metadata. Metadata should"
+                                " be provided with key=value pairs, "
+                                f"got {part}")
+
+            meta_part: list[str] = part.split("=")
+            if len(meta_part) != 2:
+                raise FileError(f"Invalid key=value pair: '{part}'")
+
+            key, value = meta_part[0], meta_part[1]
+
+            if key != "max_link_capacity":
+                raise FileError("Invalid key provided for metadata.\n"
+                                "Valid keys are: 'max_link_capacity'")
+            else:
+                if key in metadata:
+                    raise FileError(f"Duplicate key found in metadata {key}")
+
+                if not value.isdigit():
+                    raise FileError(f"Invalid max_link_capacity value: {value}"
+                                    "\nMust be a positive integer.")
+
+                metadata["max_link_capacity"] = value
+
+        return metadata
 
     @classmethod
     def parse(cls) -> tuple[dict[str, bool], Map]:
@@ -163,6 +235,8 @@ class Parser:
         if count_files > 1:
             raise ParserError("Only 1 map file must be provided per use.\n"
                               f"{cls.usage}")
+        if "--no-gui" not in flags:
+            flags["--no-gui"] = True
 
         return (flags, cls.parse_map(map_path))
 
@@ -170,6 +244,7 @@ class Parser:
     def parse_map(cls, file: str) -> Map:
         line_number: int = 0
         parsed_map: Map | None = None
+        max_drones: int = 0
 
         try:
             with open(file, "r") as f:
@@ -190,17 +265,59 @@ class Parser:
 
                         try:
                             parsed_map = Map(parts[1].strip())
+                            max_drones = parsed_map.get_nb_drones()
                         except MapError as e:
-                            raise FileError(f"Line {line_number} -"
-                                            f" '{line.strip()}': {e}")
+                            raise FileError(e)
+                    else:
 
-                    if parts[0] in {"start_hub:", "end_hub:", "hub:"}:
-                        pass
+                        if parts[0] in {"start_hub:", "end_hub:", "hub:"}:
+                            maindata = cls.parse_zone_maindata(line)
+                            metadata = cls.parse_zone_metadata(line)
 
-                    elif parts[0] == "connection":
-                        pass
+                            if (parts[0] == "start_hub:" or
+                                    parts[0] == "end_hub:"):
+                                metadata["max_drones"] = max_drones
 
+                            zone: ZoneModel = ZoneModel(**maindata, **metadata)
+
+                            if parts[0] == "hub:":
+                                parsed_map.add_zone(zone)
+
+                            elif (parts[0] == "start_hub:" and
+                                  parsed_map.start_hub):
+                                raise FileError("Multiple start_hub"
+                                                " found in file")
+                            
+                            elif parts[0] == "start_hub:":
+                                parsed_map.add_start_hub(zone)
+
+                            elif (parts[0] == "end_hub:" and
+                                  parsed_map.end_hub):
+                                raise FileError("Multiple end_hub"
+                                                " found in file")
+                            
+                            elif parts[0] == "end_hub:":
+                                parsed_map.add_end_hub(zone)
+
+                        elif parts[0] == "connection:":
+                            maindata = cls.parse_connection_maindata(line)
+                            metadata = cls.parse_connection_metadata(line)
+
+                            connect: ConnectionModel = (
+                                ConnectionModel(**maindata, **metadata)
+                            )
+
+                            parsed_map.add_connection(connect)
+
+                        else:
+                            raise FileError("Invalid line found in file: "
+                                            f"{line}")
+
+        except (FileError, ValidationError, MapError) as e:
+            raise ParserError(f"{type(e).__name__}: "
+                              f" \nLine {line_number} -"
+                              f" '{line.strip()}': {e}")
         except FileNotFoundError as e:
-            raise ParserError(e)
+            raise ParserError(f"{type(e).__name__}: \n{e}")
 
-        return Map
+        return parsed_map

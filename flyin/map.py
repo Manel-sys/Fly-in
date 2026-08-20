@@ -14,6 +14,14 @@ class Zone:
         self.max_drones: int = data.max_drones
         self.current_drones: int = 0
 
+    def __str__(self) -> str:
+        return (f"name: {self.name}"
+                f"\ncoordinates: {self.coordinates}"
+                f"\nzone_type: {self.zone_type}"
+                f"\nzone_color: {self.zone_color}"
+                f"\nmax_drones: {self.max_drones}"
+                f"\ncurrent_drones: {self.current_drones}")
+
 
 class Connection:
     def __init__(self, data: ConnectionModel) -> None:
@@ -21,6 +29,15 @@ class Connection:
         self.zone2: str = data.zone2
         self.max_link_capacity: int = data.max_link_capacity
         self.current_drones: int = 0
+
+    def __str__(self) -> str:
+        return (f"zone1: {self.zone1}"
+                f" | zone2: {self.zone2}"
+                f" | max_link_capacity: {self.max_link_capacity}"
+                f" | current_drones: {self.current_drones}")
+
+    def get_id(self) -> str:
+        return f"{self.zone1}-{self.zone2}"
 
 
 class Map:
@@ -42,6 +59,9 @@ class Map:
             raise MapError("Number of drones "
                            f"must be a positive integer, got: '{nb_drones}'")
         self.nb_drones: int = value
+
+    def get_nb_drones(self) -> int:
+        return self.nb_drones
 
     def add_zone(self, zone: ZoneModel) -> None:
         if zone.name in self.zones:
@@ -76,3 +96,23 @@ class Map:
     def add_end_hub(self, end_zone: ZoneModel) -> None:
         self.add_zone(end_zone)
         self.end_hub = end_zone.name
+
+    def show_zones(self) -> None:
+        for zone in self.zones:
+            print(self.zones[zone])
+            print("---------------")
+
+    def show_connections(self) -> None:
+        shown: set[str] = set()
+
+        for zone1 in self.connections:
+            for zone2 in self.connections[zone1]:
+                connect = self.connections[zone1][zone2]
+
+                if connect.get_id() in shown:
+                    continue
+
+                print(f"Connection {connect.get_id()}")
+                print(connect)
+                print("------------------------")
+                shown.add(connect.get_id())
