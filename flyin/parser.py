@@ -206,7 +206,7 @@ class Parser:
         return metadata
 
     @classmethod
-    def parse(cls) -> tuple[dict[str, bool], Map]:
+    def parse(cls) -> tuple[dict[str, bool], Map | None]:
 
         args: list[str] = sys.argv[1:]
         map_path: str | None = None
@@ -229,9 +229,9 @@ class Parser:
                 raise ParserError(f"Invalid argument provided {arg}\n"
                                   f"{cls.usage}"
                                   f"optional_flags include {valid_flags}")
+        if map_path is None:
+            raise ParserError(f"No map file provided. \n{cls.usage}")
 
-        if count_files == 0:
-            raise ParserError(f"No map file provided.\n {cls.usage}")
         if count_files > 1:
             raise ParserError("Only 1 map file must be provided per use.\n"
                               f"{cls.usage}")
@@ -241,7 +241,7 @@ class Parser:
         return (flags, cls.parse_map(map_path))
 
     @classmethod
-    def parse_map(cls, file: str) -> Map:
+    def parse_map(cls, file: str) -> Map | None:
         line_number: int = 0
         parsed_map: Map | None = None
         max_drones: int = 0
@@ -287,7 +287,7 @@ class Parser:
                                   parsed_map.start_hub):
                                 raise FileError("Multiple start_hub"
                                                 " found in file")
-                            
+
                             elif parts[0] == "start_hub:":
                                 parsed_map.add_start_hub(zone)
 
@@ -295,7 +295,7 @@ class Parser:
                                   parsed_map.end_hub):
                                 raise FileError("Multiple end_hub"
                                                 " found in file")
-                            
+
                             elif parts[0] == "end_hub:":
                                 parsed_map.add_end_hub(zone)
 

@@ -40,14 +40,14 @@ class ConnectionModel(BaseModel):
 
     @field_validator("zone1", "zone2")
     @classmethod
-    def validate_zone_name(cls, zone: str):
+    def validate_zone_name(cls, zone: str) -> str:
         if "-" in zone or " " in zone:
             raise ValueError(f"Invalid zone name: '{zone}' cannot include"
                              " dashes or spaces")
         return zone
 
     @model_validator(mode="after")
-    def validate_zones(self):
+    def validate_zones(self) -> "ConnectionModel":
         if self.zone1 == self.zone2:
             raise ValueError(f"Connection cannot connect zone '{self.zone1}'"
                              " to itself")
