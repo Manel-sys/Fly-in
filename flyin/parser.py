@@ -2,6 +2,7 @@ import sys
 from pydantic import ValidationError
 from .map import Map, MapError
 from .validation_models import ZoneModel, ConnectionModel
+from .solver import Solver
 from typing import Any
 
 
@@ -319,5 +320,9 @@ class Parser:
                               f" '{line.strip()}': {e}")
         except FileNotFoundError as e:
             raise ParserError(f"{type(e).__name__}: \n{e}")
+
+        solver: Solver = Solver(parsed_map)
+        if not solver.solvable():
+            raise ParserError("SolverError: \nMaze is not solvable\n")
 
         return parsed_map

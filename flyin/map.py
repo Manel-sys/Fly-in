@@ -12,15 +12,21 @@ class Zone:
         self.zone_type: ZoneType = data.zone_type
         self.zone_color: str | None = data.zone_color
         self.max_drones: int = data.max_drones
-        self.current_drones: int = 0
+
+    def weight(self) -> int | float:
+        if self.zone_type in (ZoneType.NORMAL, ZoneType.PRIORITY):
+            return 1
+        elif self.zone_type == ZoneType.RESTRICTED:
+            return 2
+
+        raise MapError(f"Cannot calculate weight for {self.zone_type}")
 
     def __str__(self) -> str:
         return (f"name: {self.name}"
                 f"\ncoordinates: {self.coordinates}"
                 f"\nzone_type: {self.zone_type}"
                 f"\nzone_color: {self.zone_color}"
-                f"\nmax_drones: {self.max_drones}"
-                f"\ncurrent_drones: {self.current_drones}")
+                f"\nmax_drones: {self.max_drones}")
 
 
 class Connection:
@@ -28,13 +34,11 @@ class Connection:
         self.zone1: str = data.zone1
         self.zone2: str = data.zone2
         self.max_link_capacity: int = data.max_link_capacity
-        self.current_drones: int = 0
 
     def __str__(self) -> str:
         return (f"zone1: {self.zone1}"
                 f" | zone2: {self.zone2}"
-                f" | max_link_capacity: {self.max_link_capacity}"
-                f" | current_drones: {self.current_drones}")
+                f" | max_link_capacity: {self.max_link_capacity}")
 
     def get_id(self) -> str:
         return f"{self.zone1}-{self.zone2}"
@@ -96,6 +100,9 @@ class Map:
     def add_end_hub(self, end_zone: ZoneModel) -> None:
         self.add_zone(end_zone)
         self.end_hub = end_zone.name
+
+    def get_zones(self) -> list[str]:
+        return [zone for zone in self.zones]
 
     def show_zones(self) -> None:
         for zone in self.zones:
