@@ -1,6 +1,89 @@
-from .map import Map
+from .map import Map, Connection
 from .validation_models import ZoneType
 from .priority_queue import MinPriorityQueue
+
+
+class SolverError(Exception):
+    pass
+
+
+class ReservationTable:
+    def __init__(self, graph: Map) -> None:
+        self.zone_reservs: dict[tuple[int, str], int] = {}
+        self.connection_reservs: dict[tuple[int, str], int] = {}
+        self.graph: Map = graph
+
+    def reserve_zone(self, turn: int, zone: str) -> None:
+        if not self.is_zone_available(turn, zone):
+            raise SolverError(f"Zone {zone} is at capacity at turn {turn}")
+
+        self.zone_reservs[(turn, zone)] = (
+            self.zone_reservs.get((turn, zone), 0) + 1
+        )
+
+    def release_zone(self, turn: int, zone: str) -> None:
+        current = self.zone_reservs.get((turn, zone), 0)
+
+        if current <= 0:
+            raise SolverError(f"No reservation to release for {zone}"
+                              f" at turn {turn}")
+
+        self.zone_reservs[(turn, zone)] = current - 1
+
+    def is_zone_available(self, turn: int, zone: str) -> bool:
+        current: int = self.zone_reservs.get((turn, zone), 0)
+
+        capacity: int = self.graph.zones[zone].max_drones
+
+        return current < capacity
+
+    def reserve_connections(self, turn: int, zone1: str, zone2: str) -> None:
+        connection: Connection = self.graph.connections[zone1][zone2]
+
+        if not self.is_connection_available(turn, zone1, zone2):
+            raise SolverError(
+                f"Connection {connection.get_id()} is at capacity "
+                "and cannot be reserved at this time"
+            )
+
+        key = (turn, connection.get_id())
+        self.connection_reservs[key] = self.connection_reservs.get(key, 0) + 1
+
+    def is_connection_available(self, turn: int,
+                                zone1: str, zone2: str) -> bool:
+
+        connection: Connection = self.graph.connections[zone1][zone2]
+
+        current: int = self.connection_reservs.get((turn,
+                                                    connection.get_id()), 0)
+
+        capacity: int = connection.max_link_capacity
+
+        return current < capacity
+
+    def release_connection(self, turn: int, zone1: str, zone2: str) -> None:
+        connection = self.graph.connections[zone1][zone2]
+
+        key = (turn, connection.get_id())
+        current = self.connection_reservs.get(key, 0)
+
+        if current <= 0:
+            raise SolverError(f"No reservation to release for "
+                              f"{connection.get_id()} at turn {turn}")
+
+        self.connection_reservs[key] = current - 1
+
+    def can_move(self, turn: int, zone1: str, zone2: str) -> tuple[bool, int]:
+        pass
+
+    def commit_move(self, turn: int, zone1: str, zone2: str) -> int:
+        pass
+
+    def can_wait(self, turn: int, zone: str) -> bool:
+        pass
+
+    def commit_wait(self, turn: int, zone: str) -> int:
+        pass
 
 
 class Solver:
