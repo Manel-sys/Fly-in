@@ -30,3 +30,6 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = ["pygame.*", "pygame"]
 ignore_missing_imports = true
+
+[tool.setuptools.packages.find]
+include = ["flyin"]
