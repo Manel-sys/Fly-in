@@ -1,6 +1,9 @@
+from typing import Any
+
+
 class MinPriorityQueue:
-    def __init__(self, items: list[tuple[int, str]]) -> None:
-        self._heap: list[tuple[int, str]] = items
+    def __init__(self, items: list[tuple[int | float, Any]]) -> None:
+        self._heap: list[tuple[int | float, Any]] = items
         self._heapify()
 
     def _heapify(self) -> None:
@@ -49,11 +52,11 @@ class MinPriorityQueue:
     def is_empty(self) -> bool:
         return len(self._heap) == 0
 
-    def push(self, distance: int, zone: str) -> None:
-        self._heap.append((distance, zone))
+    def push(self, priority: int | float, payload: Any) -> None:
+        self._heap.append((priority, payload))
         self._sift_up(len(self._heap) - 1)
 
-    def pop(self) -> tuple[int, str]:
+    def pop(self) -> tuple[int | float, Any]:
         if not self._heap:
             raise IndexError("Trying to pop from empty priority queue")
 

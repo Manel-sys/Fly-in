@@ -1,106 +1,32 @@
-from .map import Map, Connection
+from .map import Map
 from .validation_models import ZoneType
 from .priority_queue import MinPriorityQueue
+from .scheduler import ReservationTable
 
 
 class SolverError(Exception):
     pass
 
 
-class ReservationTable:
-    def __init__(self, graph: Map) -> None:
-        self.zone_reservs: dict[tuple[int, str], int] = {}
-        self.connection_reservs: dict[tuple[int, str], int] = {}
-        self.graph: Map = graph
-
-    def reserve_zone(self, turn: int, zone: str) -> None:
-        if not self.is_zone_available(turn, zone):
-            raise SolverError(f"Zone {zone} is at capacity at turn {turn}")
-
-        self.zone_reservs[(turn, zone)] = (
-            self.zone_reservs.get((turn, zone), 0) + 1
-        )
-
-    def release_zone(self, turn: int, zone: str) -> None:
-        current = self.zone_reservs.get((turn, zone), 0)
-
-        if current <= 0:
-            raise SolverError(f"No reservation to release for {zone}"
-                              f" at turn {turn}")
-
-        self.zone_reservs[(turn, zone)] = current - 1
-
-    def is_zone_available(self, turn: int, zone: str) -> bool:
-        current: int = self.zone_reservs.get((turn, zone), 0)
-
-        capacity: int = self.graph.zones[zone].max_drones
-
-        return current < capacity
-
-    def reserve_connections(self, turn: int, zone1: str, zone2: str) -> None:
-        connection: Connection = self.graph.connections[zone1][zone2]
-
-        if not self.is_connection_available(turn, zone1, zone2):
-            raise SolverError(
-                f"Connection {connection.get_id()} is at capacity "
-                "and cannot be reserved at this time"
-            )
-
-        key = (turn, connection.get_id())
-        self.connection_reservs[key] = self.connection_reservs.get(key, 0) + 1
-
-    def is_connection_available(self, turn: int,
-                                zone1: str, zone2: str) -> bool:
-
-        connection: Connection = self.graph.connections[zone1][zone2]
-
-        current: int = self.connection_reservs.get((turn,
-                                                    connection.get_id()), 0)
-
-        capacity: int = connection.max_link_capacity
-
-        return current < capacity
-
-    def release_connection(self, turn: int, zone1: str, zone2: str) -> None:
-        connection = self.graph.connections[zone1][zone2]
-
-        key = (turn, connection.get_id())
-        current = self.connection_reservs.get(key, 0)
-
-        if current <= 0:
-            raise SolverError(f"No reservation to release for "
-                              f"{connection.get_id()} at turn {turn}")
-
-        self.connection_reservs[key] = current - 1
-
-    def can_move(self, turn: int, zone1: str, zone2: str) -> tuple[bool, int]:
-        pass
-
-    def commit_move(self, turn: int, zone1: str, zone2: str) -> int:
-        pass
-
-    def can_wait(self, turn: int, zone: str) -> bool:
-        pass
-
-    def commit_wait(self, turn: int, zone: str) -> int:
-        pass
-
-
 class Solver:
     def __init__(self, map: Map) -> None:
         self.graph: Map = map
 
-    def dijkstra(self) -> tuple[dict[str, int | float], dict[str, str | None]]:
+    def dijkstra(self, from_zone: str) -> tuple[dict[str, int | float],
+                                                dict[str, str | None]]:
         zones: list[str] = self.graph.get_zones()
+        if from_zone not in zones:
+            raise SolverError(f"Could not find Zone {from_zone}"
+                              " in graph zones.")
 
         distances: dict[str, int | float] = {zone: float("inf")
                                              for zone in zones}
 
         previous: dict[str, str | None] = {zone: None for zone in zones}
 
-        distances[self.graph.start_hub] = 0
+        distances[from_zone] = 0
 
-        queue: MinPriorityQueue = MinPriorityQueue([(0, self.graph.start_hub)])
+        queue: MinPriorityQueue = MinPriorityQueue([(0, from_zone)])
 
         while not queue.is_empty():
             current_distance, current = queue.pop()
@@ -123,24 +49,116 @@ class Solver:
 
         return distances, previous
 
-    def get_path(self, previous: dict[str, str | None]) -> list[str]:
+    def get_path(self, previous: dict[str, str | None],
+                 from_zone: str, to_zone: str) -> list[str]:
         path: list[str] = []
+        zones: list[str] = self.graph.get_zones()
 
-        current: str | None = self.graph.end_hub
+        if from_zone not in zones:
+            raise SolverError(f"Could not find Zone {from_zone}"
+                              " in graph zones.")
+        elif to_zone not in zones:
+            raise SolverError(f"Could not find Zone {to_zone}"
+                              " in graph zones.")
+
+        current: str | None = to_zone
         while current:
             path.append(current)
 
-            if current == self.graph.start_hub:
-                break
+            if current == from_zone:
+                return path[::-1]
 
             current = previous[current]
 
-        return path[::-1]
+        raise SolverError(f"No path exists from {from_zone} to {to_zone}")
 
     def solvable(self) -> bool:
         distances: dict[str, int | float] = {}
         previous: dict[str, str | None] = {}
 
-        distances, previous = self.dijkstra()
+        distances, previous = self.dijkstra(self.graph.start_hub)
 
         return distances[self.graph.end_hub] != float("inf")
+
+    def astar_path(self, start_zone: str, turn: int,
+                   reservations: ReservationTable,
+                   heuristic: dict[str, int | float],
+                   horizon: int) -> list[tuple[str, int]] | None:
+
+        start_state: tuple[str, int] = (start_zone, turn)
+        queue: MinPriorityQueue = MinPriorityQueue([(heuristic[start_zone],
+                                                     (0, start_state))])
+
+        g_score: dict[tuple[str, int], int] = {start_state: turn}
+        previous: dict[tuple[str, int],
+                       tuple[str, int] | None] = {start_state: None}
+        closed: set[tuple[str, int]] = set()
+
+        while not queue.is_empty():
+            _, (_, current) = queue.pop()
+            zone, t = current
+
+            if current in closed:
+                continue
+            closed.add(current)
+
+            if zone == self.graph.end_hub:
+                return self._reconstruct(previous, current)
+
+            if t >= horizon:
+                continue
+
+            if reservations.can_wait(t, zone):
+                self._try_relax(current, (zone, t + 1),
+                                1, g_score, previous, heuristic,
+                                queue, closed)
+
+            for zone2 in self.graph.connections[zone]:
+                ok, arrival = reservations.can_move(t, zone, zone2)
+                if ok:
+                    cost: int = arrival - t
+                    neighbour: tuple[str, int] = (zone2, arrival)
+
+                    self._try_relax(current, neighbour, cost, g_score,
+                                    previous, heuristic, queue, closed)
+
+        return None
+
+    def _try_relax(self, current: tuple[str, int],
+                   neighbour: tuple[str, int],
+                   cost: int, g_score: dict[tuple[str, int], int],
+                   previous: dict[tuple[str, int], tuple[str, int] | None],
+                   heuristic: dict[str, int | float],
+                   queue: MinPriorityQueue, closed: set[tuple[str, int]]
+                   ) -> None:
+
+        if neighbour in closed:
+            return
+
+        zone_type: ZoneType = self.graph.zones[neighbour[0]].zone_type
+        new_g_score: int = g_score[current] + cost
+
+        if new_g_score < g_score.get(neighbour, float("inf")):
+            g_score[neighbour] = new_g_score
+            previous[neighbour] = current
+
+            f = new_g_score + heuristic[neighbour[0]]
+            if zone_type == ZoneType.PRIORITY:
+                penalty: int = 0
+            else:
+                penalty: int = 1
+
+            queue.push(f, (penalty, neighbour))
+
+    def _reconstruct(self,
+                     previous: dict[tuple[str, int], tuple[str, int] | None],
+                     end: tuple[str, int],
+                     ) -> list[tuple[str, int]]:
+
+        path: list[tuple[str, int]] = []
+        current: tuple[str, int] | None = end
+        while current is not None:
+            path.append(current)
+            current = previous[current]
+
+        return path[::-1]

@@ -1,6 +1,7 @@
 from .map import Map
 from .parser import Parser, ParserError
 from .solver import Solver
+from .scheduler import ReservationTable
 
 
 def main() -> None:
@@ -22,9 +23,21 @@ def main() -> None:
         print("=====================================")
         print("\nCHECKING SOLVABILITY AND SHORTEST PATH\n")
         solver: Solver = Solver(map)
-        distances, previous = solver.dijkstra()
-        path = solver.get_path(previous)
+        distances, previous = solver.dijkstra(map.start_hub)
+        path = solver.get_path(previous, map.start_hub, map.end_hub)
+        print("Shortest Path from start to end")
         print(path)
+        print("Distances")
+        print(distances)
+        print("Zone parents")
+        print(previous)
+        print("\n\n\n")
+        print("Testing A*")
+        reservations: ReservationTable = ReservationTable(map)
+        path_astar = solver.astar_path(map.start_hub, 0, reservations,
+                                       distances, 50)
+
+        print(path_astar)
 
 
 if __name__ == "__main__":
