@@ -134,5 +134,3 @@ class ReservationTable:
 
 class Scheduler:
     pass
-
-
