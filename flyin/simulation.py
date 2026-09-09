@@ -1,5 +1,5 @@
 from .drone import Drone
-from .map import Map
+from .map import Map, Connection
 
 
 class Simulation:
@@ -32,13 +32,14 @@ class Simulation:
         move_count: int = 0
         line: list[str] = []
         for d in self.drones:
+            connect: Connection | None = d.get_connection()
             if turn > self.paths[d.get_id()][-1][1]:
                 continue
             if d.moved:
                 line.append(f"D{d.get_id()}-<{d.get_position()}>")
                 move_count += 1
-            elif d.get_connection():
-                line.append(f"D{d.get_id()}-<{d.get_connection().get_id()}>")
+            elif connect:
+                line.append(f"D{d.get_id()}-<{connect.get_id()}>")
                 move_count += 1
 
         result: str = " ".join(line)
@@ -75,6 +76,8 @@ class EvalMetrics:
     def print_occupancy(self, turn: int) -> None:
         zone_occupancy: dict[str, int] = {}
         connection_occupancy: dict[str, int] = {}
+        total_zone: int = 0
+        total_conn: int = 0
 
         for zone in self.sim.graph.get_zones():
             zone_occupancy[zone] = 0
@@ -89,13 +92,19 @@ class EvalMetrics:
             else:
                 zone_occupancy[d.get_position()] += 1
 
+        total_zone = sum(zone_occupancy.values())
+        total_conn = sum(connection_occupancy.values())
+
         print(f"\nZone occupancy at turn {turn}:")
         for zone, count in zone_occupancy.items():
             if count > 0:
                 print(f" + Zone <{zone}> = {count}")
-        print("====================================")
+        if total_zone == 0:
+            print("None")
         print(f"\nConnection occupancy at turn {turn}:")
-        for conn, count in connection_occupancy.items():
+        for conn_id, count in connection_occupancy.items():
             if count > 0:
-                print(f" + Connection <{conn}> = {count}")
-        print("====================================\n")
+                print(f" + Connection <{conn_id}> = {count}")
+        if total_conn == 0:
+            print("None")
+        print("---------------------------------------\n")
