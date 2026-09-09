@@ -45,6 +45,7 @@ def main() -> None:
         flags, map = Parser.parse()
     except ParserError as e:
         print(f"Error while parsing: {e}")
+        return
 
     if map:
         drones: list[Drone] = Drone.generate_drone_fleet(map)
@@ -52,7 +53,8 @@ def main() -> None:
             scheduler: Scheduler = Scheduler(map, 50, drones)
             paths: dict[int, list[tuple[str, int]]] = scheduler.schedule_all()
         except SchedulerError as e:
-            print(f"{type(e).__name__: {e}}")
+            print(f"{type(e).__name__}: {e}")
+            return
         simulation: Simulation = Simulation(map, drones, paths)
         simulation.run(flags)
 

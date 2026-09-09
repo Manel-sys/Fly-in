@@ -49,7 +49,7 @@ class Scheduler:
 
             if path is None:
                 raise SchedulerError(f"Could not find path for D{d.get_id()}"
-                                     " within the given horizon -"
+                                     " within the given horizon - "
                                      f"{self.max_turns} turns")
 
             self._commit_path(path)
