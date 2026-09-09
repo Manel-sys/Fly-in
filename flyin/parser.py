@@ -237,7 +237,7 @@ class Parser:
             raise ParserError("Only 1 map file must be provided per use.\n"
                               f"{cls.usage}")
         if "--no-gui" not in flags:
-            flags["--no-gui"] = True
+            flags["--no-gui"] = False
 
         return (flags, cls.parse_map(map_path))
 
