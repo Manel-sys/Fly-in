@@ -95,6 +95,8 @@ class EvalMetrics:
         total_zone = sum(zone_occupancy.values())
         total_conn = sum(connection_occupancy.values())
 
+        if turn == 0:
+            print("---------------------------------------")
         print(f"\nZone occupancy at turn {turn}:")
         for zone, count in zone_occupancy.items():
             if count > 0:
@@ -107,4 +109,4 @@ class EvalMetrics:
                 print(f" + Connection <{conn_id}> = {count}")
         if total_conn == 0:
             print("None")
-        print("---------------------------------------\n")
+        print("---------------------------------------")
