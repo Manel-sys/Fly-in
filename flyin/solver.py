@@ -1,7 +1,7 @@
 from .map import Map
 from .validation_models import ZoneType
 from .priority_queue import MinPriorityQueue
-from .scheduler import ReservationTable
+from .reservation_table import ReservationTable
 
 
 class SolverError(Exception):

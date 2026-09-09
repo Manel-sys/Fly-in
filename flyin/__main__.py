@@ -1,7 +1,9 @@
 from .map import Map
 from .parser import Parser, ParserError
 from .solver import Solver
-from .scheduler import ReservationTable
+from .reservation_table import ReservationTable
+from .scheduler import SchedulerError, Scheduler
+from .drone import Drone
 
 
 def main() -> None:
@@ -38,6 +40,23 @@ def main() -> None:
                                        distances, 50)
 
         print(path_astar)
+
+        print("\nTesting Scheduler!!!\n")
+
+        drones = Drone.generate_drone_fleet(map)
+        try:
+            scheduler = Scheduler(map, 50, drones)
+            paths = scheduler.schedule_all()
+        except SchedulerError as e:
+            print(f"{type(e).__name__}: {e}")
+
+        makespan: int = 0
+        for id in paths:
+            if makespan < paths[id][-1][1]:
+                makespan = paths[id][-1][1]
+            print(f"D{id} path: {paths[id]}\n")
+
+        print(f"Makespan = {makespan}")
 
 
 if __name__ == "__main__":
