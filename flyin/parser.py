@@ -16,9 +16,9 @@ class FileError(Exception):
 
 class Parser:
     usage: str = ("Usage: make run "
-                  "[optional_flags]\n"
+                  "ARGS=[optional_flags]\n"
                   "or: make run-map MAP=<file_path.txt> "
-                  "[optional_flags]\n"
+                  "ARGS=[optional_flags]\n"
                   "or: python3 -m flyin <file_path.txt> "
                   "[optional_flags]\n")
 
@@ -212,7 +212,8 @@ class Parser:
         args: list[str] = sys.argv[1:]
         map_path: str | None = None
         count_files: int = 0
-        valid_flags: set[str] = {"--no-gui"}
+        valid_flags: set[str] = {"--no-gui", "--show-score",
+                                 "--show-occupancy"}
 
         if len(args) == 0:
             raise ParserError(f"No args provided.\n{cls.usage}"
@@ -238,6 +239,10 @@ class Parser:
                               f"{cls.usage}")
         if "--no-gui" not in flags:
             flags["--no-gui"] = False
+        if "--show-score" not in flags:
+            flags["--show-score"] = False
+        if "--show-occupancy" not in flags:
+            flags["--show-occupancy"] = False
 
         return (flags, cls.parse_map(map_path))
 

@@ -31,6 +31,7 @@ from .solver import Solver # noqa
 from .reservation_table import ReservationTable # noqa
 from .scheduler import SchedulerError, Scheduler # noqa
 from .drone import Drone # noqa
+from .simulation import Simulation # noqa
 
 
 def main() -> None:
@@ -85,6 +86,10 @@ def main() -> None:
             print(f"D{id} path: {paths[id]}\n")
 
         print(f"Makespan = {makespan}")
+
+        print("\n\nTesting Simulation!!!\n")
+        simulation: Simulation = Simulation(map, drones, paths)
+        simulation.run(flags)
 
 
 if __name__ == "__main__":

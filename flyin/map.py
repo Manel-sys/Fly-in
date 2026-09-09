@@ -104,6 +104,15 @@ class Map:
     def get_zones(self) -> list[str]:
         return [zone for zone in self.zones]
 
+    def get_connections(self) -> set[str]:
+        connects: set[str] = set()
+        for zone1 in self.connections:
+            for zone2 in self.connections[zone1]:
+                connect = self.connections[zone1][zone2]
+                connects.add(connect.get_id())
+
+        return connects
+
     def show_zones(self) -> None:
         for zone in self.zones:
             print(self.zones[zone])
