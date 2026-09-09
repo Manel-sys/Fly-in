@@ -18,4 +18,8 @@ class Drone:
 
     @staticmethod
     def generate_drone_fleet(map: Map) -> list["Drone"]:
-        return [Drone(i, map.start_hub) for i in range(1, map.nb_drones + 1)]
+        if map.start_hub is None:
+            return []
+        else:
+            return [Drone(i, map.start_hub) 
+                    for i in range(1, map.nb_drones + 1)]

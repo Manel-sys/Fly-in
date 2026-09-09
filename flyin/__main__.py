@@ -1,12 +1,40 @@
-from .map import Map
-from .parser import Parser, ParserError
-from .solver import Solver
-from .reservation_table import ReservationTable
-from .scheduler import SchedulerError, Scheduler
-from .drone import Drone
+from importlib import import_module
+from importlib import metadata
+
+
+def check_package(name: str, description: str) -> bool:
+    try:
+        import_module(name)
+        version = metadata.version(name)
+        print(f"[OK] {name} ({version}) - {description} ready")
+        return True
+    except (ImportError, metadata.PackageNotFoundError):
+        print(f"[MISSING] {name} - {description} not ready")
+        return False
+
+
+print("Checking dependencies:")
+dependencies = [
+                check_package("pydantic", "Data validation package"),
+                check_package("pygame", "Vizualization library"),
+                ]
+
+if not all(dependencies):
+    print("Missing dependencies found!\n")
+    print("Exiting now...")
+    exit()
+
+
+from .map import Map # noqa
+from .parser import Parser, ParserError # noqa
+from .solver import Solver # noqa
+from .reservation_table import ReservationTable # noqa
+from .scheduler import SchedulerError, Scheduler # noqa
+from .drone import Drone # noqa
 
 
 def main() -> None:
+
     print("--------Testing program----------")
     map: Map | None = None
     flags: dict[str, bool] = {}

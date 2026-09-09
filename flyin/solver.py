@@ -12,8 +12,11 @@ class Solver:
     def __init__(self, map: Map) -> None:
         self.graph: Map = map
 
-    def dijkstra(self, from_zone: str) -> tuple[dict[str, int | float],
-                                                dict[str, str | None]]:
+    def dijkstra(self, from_zone: str | None) -> tuple[dict[str, int | float],
+                                                       dict[str, str | None]]:
+        if from_zone is None:
+            raise SolverError("Starting zone cannot be None")
+
         zones: list[str] = self.graph.get_zones()
         if from_zone not in zones:
             raise SolverError(f"Could not find Zone {from_zone}"
@@ -78,7 +81,10 @@ class Solver:
 
         distances, previous = self.dijkstra(self.graph.start_hub)
 
-        return distances[self.graph.end_hub] != float("inf")
+        if self.graph.end_hub is not None:
+            return distances[self.graph.end_hub] != float("inf")
+        else:
+            return False
 
     def astar_path(self, start_zone: str, turn: int,
                    reservations: ReservationTable,
@@ -146,7 +152,7 @@ class Solver:
             if zone_type == ZoneType.PRIORITY:
                 penalty: int = 0
             else:
-                penalty: int = 1
+                penalty = 1
 
             queue.push(f, (penalty, neighbour))
 

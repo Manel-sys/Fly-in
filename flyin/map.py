@@ -13,7 +13,7 @@ class Zone:
         self.zone_color: str | None = data.zone_color
         self.max_drones: int = data.max_drones
 
-    def weight(self) -> int | float:
+    def weight(self) -> int:
         if self.zone_type in (ZoneType.NORMAL, ZoneType.PRIORITY):
             return 1
         elif self.zone_type == ZoneType.RESTRICTED:

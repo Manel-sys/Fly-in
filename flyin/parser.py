@@ -321,8 +321,9 @@ class Parser:
         except FileNotFoundError as e:
             raise ParserError(f"{type(e).__name__}: \n{e}")
 
-        solver: Solver = Solver(parsed_map)
-        if not solver.solvable():
-            raise ParserError("SolverError: \nMaze is not solvable\n")
+        if parsed_map:
+            solver: Solver = Solver(parsed_map)
+            if not solver.solvable():
+                raise ParserError("SolverError: \nMaze is not solvable\n")
 
         return parsed_map
