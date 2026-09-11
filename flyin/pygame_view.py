@@ -1,4 +1,5 @@
 import pygame
+import math
 from .simulation import Simulation
 from .validation_models import ZoneType
 
@@ -29,7 +30,7 @@ class PygameRenderer:
     def __init__(self, simulation: Simulation, seconds_per_turn: float = 1.0,
                  fps: int = 60, width: int = 800, height: int = 600,
                  margin: int = 50,
-                 drone_size: int = 48,
+                 drone_size: int = 30,
                  drone_idle_path: str = "assets/Idle.png",
                  drone_walk_path: str = "assets/Walk.png") -> None:
 
@@ -158,6 +159,14 @@ class PygameRenderer:
 
         return False
 
+    def _spread_offset(self, index: int) -> tuple[int, int]:
+        if index == 0:
+            return (0, 0)
+
+        angle = index * 2.4
+        radius = 6 + index * 3
+        return (int(radius * math.cos(angle)), int(radius * math.sin(angle)))
+
     def run(self) -> None:
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
@@ -240,7 +249,7 @@ class PygameRenderer:
         for name, pos in self.zone_positions.items():
 
             color = self.zone_colors[name]
-            pygame.draw.circle(self.screen, color, pos, 10)
+            pygame.draw.circle(self.screen, color, pos, 16)
 
     def _draw_drones(self) -> None:
         if self.auto_play:
@@ -248,10 +257,18 @@ class PygameRenderer:
         else:
             frac_turn = self.current_turn
 
+        positions_seen: dict[tuple[int, int], int] = {}
+
         for d in self.sim.drones:
             path = self.sim.paths[d.get_id()]
             x, y = d.get_render_position(path, frac_turn, self.sim.graph)
-            pos = self._to_screen((x, y))
+            base_pos = self._to_screen((x, y))
+
+            count = positions_seen.get(base_pos, 0)
+            positions_seen[base_pos] = count + 1
+
+            dx, dy = self._spread_offset(count)
+            pos = (base_pos[0] + dx, base_pos[1] + dy)
 
             if self.sprites_loaded:
                 if self._is_drone_moving(path, frac_turn):
