@@ -14,12 +14,10 @@ class Simulation:
     def run(self, flags: dict[str, bool]) -> None:
         metrics: EvalMetrics = EvalMetrics(self)
 
-        path_index: dict[int, int] = {d.get_id(): 0 for d in self.drones}
         for t in range(self.final_turn + 1):
             for d in self.drones:
-                index: int = path_index[d.get_id()]
-                path_index[d.get_id()] = d.next_turn(self.paths[d.get_id()], t,
-                                                     self.graph, index)
+                d.next_turn(self.paths[d.get_id()], t,
+                            self.graph)
 
             metrics.append_nbr_moves(self.print_turn(t))
             if flags["--show-occupancy"]:

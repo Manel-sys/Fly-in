@@ -17,28 +17,50 @@ class Drone:
     def get_connection(self) -> Connection | None:
         return self.connection
 
-    def next_turn(self, path: list[tuple[str, int]], turn: int,
-                  map: Map, index: int) -> int:
+    def next_turn(self, path: list[tuple[str, int]],
+                  turn: int, map: Map) -> None:
 
-        if index >= len(path) - 1:
-            return -1
+        for i in range(len(path) - 1):
+            zone1, t1 = path[i]
+            zone2, t2 = path[i + 1]
 
-        zone1, t1 = path[index]
-        zone2, t2 = path[index + 1]
+            if turn == t2:
+                self.position = zone2
+                self.connection = None
+                self.moved = (zone1 != zone2)
+                return
 
-        if turn == t2:
-            self.position = zone2
-            self.connection = None
-            self.moved = (zone1 != zone2)
-            return index + 1
+            if (t2 - t1) > 1 and t1 <= turn < t2:
+                self.connection = map.connections[zone1][zone2]
+                self.moved = False
+                return
 
-        if (t2 - t1) > 1 and t1 <= turn < t2:
-            self.connection = map.connections[zone1][zone2]
             self.moved = False
-            return index
 
-        self.moved = False
-        return index
+    @staticmethod
+    def get_render_position(path: list[tuple],
+                            frac_turn: float,
+                            graph: Map) -> tuple[float, float]:
+
+        for i in range(len(path) - 1):
+            zone1, t1 = path[i]
+            zone2, t2 = path[i + 1]
+
+            if t1 <= frac_turn <= t2:
+                x1, y1 = graph.zones[zone1].coordinates
+                x2, y2 = graph.zones[zone2].coordinates
+
+                if zone1 == zone2 or t2 == t1:
+                    return float(x1), float(y1)
+
+                progress = (frac_turn - t1) / (t2 - t1)
+                x = x1 + (x2 - x1) * progress
+                y = y1 + (y2 - y1) * progress
+                return x, y
+
+        last_zone = path[-1][0]
+        x, y = graph.zones[last_zone].coordinates
+        return float(x), float(y)
 
     @staticmethod
     def generate_drone_fleet(map: Map) -> list["Drone"]:
