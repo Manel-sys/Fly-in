@@ -7,6 +7,7 @@ class Drone:
         self.position: str = drone_zone
         self.connection: Connection | None = None
         self.moved: bool = False
+        self.intransit: bool = False
 
     def get_position(self) -> str:
         return self.position
@@ -28,14 +29,18 @@ class Drone:
                 self.position = zone2
                 self.connection = None
                 self.moved = (zone1 != zone2)
+                self.intransit = False
                 return
 
             if (t2 - t1) > 1 and t1 <= turn < t2:
                 self.connection = map.connections[zone1][zone2]
                 self.moved = False
+                if t1 < turn < t2:
+                    self.intransit = True
                 return
 
             self.moved = False
+            self.intransit = False
 
     @staticmethod
     def get_render_position(path: list[tuple],

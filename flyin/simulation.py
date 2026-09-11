@@ -19,6 +19,7 @@ class Simulation:
         for t in range(self.final_turn + 1):
             self.zone_occupancy[t] = {}
             self.edge_occupancy[t] = {}
+
             for d in self.drones:
                 d.next_turn(self.paths[d.get_id()], t,
                             self.graph)
@@ -59,7 +60,7 @@ class Simulation:
                 line.append(f"D{d.get_id()}-<{d.get_position()}>")
                 to_show.add(d.get_position())
                 move_count += 1
-            elif connect:
+            elif connect and d.intransit:
                 line.append(f"D{d.get_id()}-<{connect.get_id()}>")
                 to_show.add(connect.get_id())
                 move_count += 1
@@ -119,8 +120,11 @@ class EvalMetrics:
 
         for d in self.sim.drones:
             conn = d.get_connection()
-            if conn:
+            if conn and d.intransit:
                 connection_occupancy[conn.get_id()] += 1
+            elif conn:
+                connection_occupancy[conn.get_id()] += 1
+                zone_occupancy[d.get_position()] += 1
             else:
                 zone_occupancy[d.get_position()] += 1
 
