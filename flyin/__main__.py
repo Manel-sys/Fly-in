@@ -58,6 +58,12 @@ def main() -> None:
         simulation: Simulation = Simulation(map, drones, paths)
         simulation.run(flags)
 
+        if not flags["--no-gui"]:
+            from .pygame_view import PygameRenderer
+            renderer: PygameRenderer = PygameRenderer(simulation, margin=100,
+                                                      width=1200, height=1000)
+            renderer.run()
+
 
 if __name__ == "__main__":
     main()
