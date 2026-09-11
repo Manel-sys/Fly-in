@@ -10,35 +10,69 @@ class Simulation:
         self.drones: list[Drone] = drones
         self.paths: dict[int, list[tuple[str, int]]] = paths
         self.final_turn: int = max(path[-1][1] for path in paths.values())
+        self.zone_occupancy: dict[dict[str, int]] = {}
+        self.edge_occupancy: dict[dict[str, int]] = {}
 
     def run(self, flags: dict[str, bool]) -> None:
         metrics: EvalMetrics = EvalMetrics(self)
 
         for t in range(self.final_turn + 1):
+            self.zone_occupancy[t] = {}
+            self.edge_occupancy[t] = {}
             for d in self.drones:
                 d.next_turn(self.paths[d.get_id()], t,
                             self.graph)
 
-            metrics.append_nbr_moves(self.print_turn(t))
+            for d in self.drones:
+                conn = d.get_connection()
+                if conn:
+                    to_add = self.edge_occupancy[t].setdefault(
+                                conn.get_id(), 0)
+                    self.edge_occupancy[t][conn.get_id()] = to_add + 1
+                elif d.moved:
+                    to_add = self.zone_occupancy[t].setdefault(
+                            d.get_position(), 0)
+                    self.zone_occupancy[t][d.get_position()] = to_add + 1
+                elif not d.moved:
+                    to_add = self.zone_occupancy[t].setdefault(
+                        d.get_position(), 0)
+                    self.zone_occupancy[t][d.get_position()] = to_add + 1
+
+            metrics.append_nbr_moves(self.print_turn(t, flags))
             if flags["--show-occupancy"]:
                 metrics.print_occupancy(t)
 
         if flags["--show-score"]:
             metrics.show()
 
-    def print_turn(self, turn: int) -> int:
+    def print_turn(self, turn: int, flags: dict[str, bool]) -> int:
         move_count: int = 0
         line: list[str] = []
+        to_show: set[str] = set()
+
         for d in self.drones:
             connect: Connection | None = d.get_connection()
             if turn > self.paths[d.get_id()][-1][1]:
                 continue
+
             if d.moved:
                 line.append(f"D{d.get_id()}-<{d.get_position()}>")
+                to_show.add(d.get_position())
                 move_count += 1
             elif connect:
                 line.append(f"D{d.get_id()}-<{connect.get_id()}>")
+                to_show.add(connect.get_id())
                 move_count += 1
+
+        if flags["--inline-occupancy"]:
+            for item in to_show:
+                conn = self.graph.get_connection(item)
+                if conn:
+                    line.append(f"({item}, {self.edge_occupancy[turn][item]}"
+                                f"/{conn.max_link_capacity})")
+                else:
+                    line.append(f"({item}, {self.zone_occupancy[turn][item]}"
+                                f"/{self.graph.zones[item].max_drones})")
 
         result: str = " ".join(line)
 

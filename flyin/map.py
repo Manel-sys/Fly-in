@@ -113,6 +113,14 @@ class Map:
 
         return connects
 
+    def get_connection(self, conn_id: str) -> Connection | None:
+        connections: set[str] = self.get_connections()
+        if conn_id in connections:
+            zone1, zone2 = conn_id.split("-")
+            return self.connections[zone1][zone2]
+
+        return None
+
     def show_zones(self) -> None:
         for zone in self.zones:
             print(self.zones[zone])

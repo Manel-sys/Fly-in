@@ -213,7 +213,7 @@ class Parser:
         map_path: str | None = None
         count_files: int = 0
         valid_flags: set[str] = {"--no-gui", "--show-score",
-                                 "--show-occupancy"}
+                                 "--show-occupancy", "--inline-occupancy"}
 
         if len(args) == 0:
             raise ParserError(f"No args provided.\n{cls.usage}"
@@ -243,6 +243,8 @@ class Parser:
             flags["--show-score"] = False
         if "--show-occupancy" not in flags:
             flags["--show-occupancy"] = False
+        if "--inline-occupancy" not in flags:
+            flags["--inline-occupancy"] = False
 
         return (flags, cls.parse_map(map_path))
 
