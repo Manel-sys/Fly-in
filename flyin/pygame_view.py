@@ -2,6 +2,7 @@ import pygame
 import math
 from .simulation import Simulation
 from .validation_models import ZoneType
+from .banner import BANNER
 
 
 NAMED_COLORS: dict[str, tuple[int, int, int]] = {
@@ -182,6 +183,8 @@ class PygameRenderer:
                   " falling back to circles.")
             self.sprites_loaded = False
 
+        self._show_banner_screen()
+
         running = True
         while running:
             dt = self.clock.tick(self.fps) / 1000.0
@@ -318,3 +321,39 @@ class PygameRenderer:
             text_rect.midbottom = (self.width // 2,
                                    start_y + (i + 1) * line_height)
             self.screen.blit(surface, text_rect)
+
+    def _show_banner_screen(self) -> None:
+        mono_font = pygame.font.SysFont("couriernew", 16)
+        lines = BANNER.strip("\n").split("\n")
+
+        line_height = mono_font.get_linesize()
+        rendered = [mono_font.render(line, True,
+                                     (255, 255, 255)) for line in lines]
+        max_width = max(surface.get_width() for surface in rendered)
+
+        total_height = line_height * len(lines)
+        start_x = (self.width - max_width) // 2
+        start_y = (self.height - total_height) // 2
+
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    raise SystemExit
+                elif event.type == pygame.KEYDOWN:
+                    waiting = False
+
+            self.screen.fill((30, 30, 45))
+
+            for i, surface in enumerate(rendered):
+                self.screen.blit(surface, (start_x, start_y + i * line_height))
+
+            hint = mono_font.render("Press any key to start", True,
+                                    (150, 150, 150))
+            hint_rect = hint.get_rect()
+            hint_rect.midbottom = (self.width // 2, self.height - 20)
+            self.screen.blit(hint, hint_rect)
+
+            pygame.display.flip()
+            self.clock.tick(30)
