@@ -10,15 +10,26 @@ class Simulation:
         self.drones: list[Drone] = drones
         self.paths: dict[int, list[tuple[str, int]]] = paths
         self.final_turn: int = max(path[-1][1] for path in paths.values())
-        self.zone_occupancy: dict[dict[str, int]] = {}
-        self.edge_occupancy: dict[dict[str, int]] = {}
+        self.zone_occupancy: dict[int, dict[str, int]] = {}
+        self.edge_occupancy: dict[int, dict[str, int]] = {}
+        self._init_occupancy()
+
+    def _init_occupancy(self) -> None:
+        zones: list[str] = self.graph.get_zones()
+        edges: set[str] = self.graph.get_connections()
+
+        for t in range(self.final_turn + 1):
+            self.zone_occupancy[t] = {}
+            self.edge_occupancy[t] = {}
+            for zone in zones:
+                self.zone_occupancy[t][zone] = 0
+            for edge in edges:
+                self.edge_occupancy[t][edge] = 0
 
     def run(self, flags: dict[str, bool]) -> None:
         metrics: EvalMetrics = EvalMetrics(self)
 
         for t in range(self.final_turn + 1):
-            self.zone_occupancy[t] = {}
-            self.edge_occupancy[t] = {}
 
             for d in self.drones:
                 d.next_turn(self.paths[d.get_id()], t,
@@ -26,18 +37,15 @@ class Simulation:
 
             for d in self.drones:
                 conn = d.get_connection()
-                if conn:
-                    to_add = self.edge_occupancy[t].setdefault(
-                                conn.get_id(), 0)
-                    self.edge_occupancy[t][conn.get_id()] = to_add + 1
-                elif d.moved:
-                    to_add = self.zone_occupancy[t].setdefault(
-                            d.get_position(), 0)
-                    self.zone_occupancy[t][d.get_position()] = to_add + 1
-                elif not d.moved:
-                    to_add = self.zone_occupancy[t].setdefault(
-                        d.get_position(), 0)
-                    self.zone_occupancy[t][d.get_position()] = to_add + 1
+                if conn and d.intransit:
+                    self.edge_occupancy[t][conn.get_id()] += 1
+
+                elif conn:
+                    self.zone_occupancy[t][d.get_position()] += 1
+                    self.edge_occupancy[t][conn.get_id()] += 1
+
+                else:
+                    self.zone_occupancy[t][d.get_position()] += 1
 
             metrics.append_nbr_moves(self.print_turn(t, flags))
             if flags["--show-occupancy"]:
@@ -107,40 +115,22 @@ class EvalMetrics:
         print(f"Total path cost = {self.total_path_cost}")
 
     def print_occupancy(self, turn: int) -> None:
-        zone_occupancy: dict[str, int] = {}
-        connection_occupancy: dict[str, int] = {}
         total_zone: int = 0
         total_conn: int = 0
 
-        for zone in self.sim.graph.get_zones():
-            zone_occupancy[zone] = 0
-
-        for connect in self.sim.graph.get_connections():
-            connection_occupancy[connect] = 0
-
-        for d in self.sim.drones:
-            conn = d.get_connection()
-            if conn and d.intransit:
-                connection_occupancy[conn.get_id()] += 1
-            elif conn:
-                connection_occupancy[conn.get_id()] += 1
-                zone_occupancy[d.get_position()] += 1
-            else:
-                zone_occupancy[d.get_position()] += 1
-
-        total_zone = sum(zone_occupancy.values())
-        total_conn = sum(connection_occupancy.values())
+        total_zone = sum(self.sim.zone_occupancy[turn].values())
+        total_conn = sum(self.sim.edge_occupancy[turn].values())
 
         if turn == 0:
             print("---------------------------------------")
         print(f"\nZone occupancy at turn {turn}:")
-        for zone, count in zone_occupancy.items():
+        for zone, count in self.sim.zone_occupancy[turn].items():
             if count > 0:
                 print(f" + Zone <{zone}> = {count}")
         if total_zone == 0:
             print("None")
         print(f"\nConnection occupancy at turn {turn}:")
-        for conn_id, count in connection_occupancy.items():
+        for conn_id, count in self.sim.edge_occupancy[turn].items():
             if count > 0:
                 print(f" + Connection <{conn_id}> = {count}")
         if total_conn == 0:
