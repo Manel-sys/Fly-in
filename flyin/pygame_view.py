@@ -27,6 +27,12 @@ TYPE_COLORS: dict[ZoneType, tuple[int, int, int]] = {
 }
 
 
+class RendererError(Exception):
+    def __init__(self, msg: str = "Renderer not initialized: "
+                 "call run() first") -> None:
+        super().__init__(msg)
+
+
 class PygameRenderer:
     def __init__(self, simulation: Simulation, seconds_per_turn: float = 1.0,
                  fps: int = 60, width: int = 800, height: int = 600,
@@ -62,6 +68,8 @@ class PygameRenderer:
         self.min_x: float = 0.0
         self.min_y: float = 0.0
         self.scale: float = 1.0
+        self.offset_x: float = 0.0
+        self.offset_y: float = 0.0
 
         self.zone_positions: dict[str, tuple[int, int]] = {}
         self.zone_colors: dict[str, tuple[int, int, int]] = {}
@@ -98,11 +106,11 @@ class PygameRenderer:
         self.offset_x = self.margin + (available_width - used_width) / 2
         self.offset_y = self.margin + (available_height - used_height) / 2
 
-    def _to_screen(self, coordinates: tuple[int, int]) -> tuple[int, int]:
+    def _to_screen(self, coordinates: tuple[float, float]) -> tuple[int, int]:
         x, y = coordinates
         px = self.offset_x + int((x - self.min_x) * self.scale)
         py = self.offset_y + int((y - self.min_y) * self.scale)
-        return px, py
+        return int(px), int(py)
 
     def _zone_color(self, zone_color: str | None,
                     zone_type: ZoneType) -> tuple[int, int, int]:
@@ -235,6 +243,9 @@ class PygameRenderer:
         self.elapsed = min(self.elapsed + dt, max_elapsed)
 
     def _draw_frame(self) -> None:
+        if self.screen is None:
+            raise RendererError("Renderer not initialized")
+
         self.screen.fill((30, 30, 45))
         self._draw_connections()
         self._draw_zones()
@@ -245,16 +256,25 @@ class PygameRenderer:
         pygame.display.flip()
 
     def _draw_connections(self) -> None:
+        if self.screen is None:
+            raise RendererError()
+
         for start, end in self.connection_lines:
             pygame.draw.line(self.screen, (100, 100, 100), start, end, 2)
 
     def _draw_zones(self) -> None:
+        if self.screen is None:
+            raise RendererError()
+
         for name, pos in self.zone_positions.items():
 
             color = self.zone_colors[name]
             pygame.draw.circle(self.screen, color, pos, 16)
 
     def _draw_drones(self) -> None:
+        if self.screen is None:
+            raise RendererError()
+
         if self.auto_play:
             frac_turn = self.elapsed / self.seconds_per_turn
         else:
@@ -288,6 +308,9 @@ class PygameRenderer:
                 pygame.draw.circle(self.screen, (255, 255, 0), pos, 8)
 
     def _draw_turn_counter(self) -> None:
+        if self.font is None or self.screen is None:
+            raise RendererError()
+
         if self.auto_play:
             frac_turn = self.elapsed / self.seconds_per_turn
         else:
@@ -305,6 +328,9 @@ class PygameRenderer:
         self.screen.blit(surface, text_rect)
 
     def _draw_controls_help(self) -> None:
+        if self.screen is None or self.font is None:
+            raise RendererError()
+
         lines = [
             "Press SPACE to toggle auto-play / manual mode",
             "Press LEFT ARROW to step back one turn (manual mode)",
@@ -323,6 +349,9 @@ class PygameRenderer:
             self.screen.blit(surface, text_rect)
 
     def _show_banner_screen(self) -> None:
+        if self.screen is None or self.clock is None:
+            raise RendererError()
+
         mono_font = pygame.font.SysFont("couriernew", 16)
         lines = BANNER.strip("\n").split("\n")
 

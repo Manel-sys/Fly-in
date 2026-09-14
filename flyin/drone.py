@@ -43,7 +43,7 @@ class Drone:
             self.intransit = False
 
     @staticmethod
-    def get_render_position(path: list[tuple],
+    def get_render_position(path: list[tuple[str, int]],
                             frac_turn: float,
                             graph: Map) -> tuple[float, float]:
 
