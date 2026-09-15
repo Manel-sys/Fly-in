@@ -7,14 +7,21 @@ from typing import Any
 
 
 class ParserError(Exception):
+    """Raised for any user-facing parsing failure: bad CLI arguments, a
+    malformed map file, or a map that has no path from start to end."""
     pass
 
 
 class FileError(Exception):
+    """Raised internally while parsing a single map-file line; always
+    caught and re-raised as a ``ParserError`` with line context added."""
     pass
 
 
 class Parser:
+    """Static/class-method namespace for parsing CLI arguments and map
+    files into a ``Map`` and a dict of boolean CLI flags."""
+
     usage: str = ("Usage: make run "
                   "ARGS=[optional_flags]\n"
                   "or: make run-map MAP=<file_path.txt> "
@@ -24,6 +31,22 @@ class Parser:
 
     @classmethod
     def get_metadata(cls, line: str) -> str:
+        """Extract the raw ``[key=value ...]`` metadata segment from a
+        line, if present.
+
+        Args:
+            line: A single zone or connection definition line.
+
+        Returns:
+            The metadata segment including its surrounding brackets
+            (e.g. ``"[zone=restricted color=red]"``), or an empty
+            string if the line has no metadata segment at all.
+
+        Raises:
+            FileError: If a metadata segment is opened but never
+                properly closed, or contains nested/duplicate brackets.
+        """
+
         metadata_format: str = ("Metadata should be in the format"
                                 " [key=value key=value ...]")
 
@@ -50,6 +73,25 @@ class Parser:
 
     @classmethod
     def get_maindata(cls, tag: str, line: str) -> str:
+        """Extract and structurally validate the non-metadata portion of
+        a zone or connection definition line (everything before the
+        first ``[``).
+
+        Args:
+            tag: Either ``"zone"`` or ``"connection"``, selecting which
+                shape to validate against.
+            line: The full definition line.
+
+        Returns:
+            The raw main-data segment (tag plus arguments), with
+            trailing whitespace/metadata stripped.
+
+        Raises:
+            FileError: If the main-data segment doesn't have the
+                expected number of whitespace-separated fields for the
+                given ``tag``.
+        """
+
         i: int = 0
         raw_maindata: str = ""
         main_data_parts: list[str] = []
@@ -77,6 +119,27 @@ class Parser:
 
     @classmethod
     def parse_zone_metadata(cls, line: str) -> dict[str, Any]:
+        """Parse a zone definition line's ``[key=value ...]`` metadata
+        into a kwargs dict ready to build a ``ZoneModel``.
+
+        Recognised keys are ``zone`` (mapped to ``zone_type``), ``color``
+        (mapped to ``zone_color``), and ``max_drones``. Keys may appear
+        in any order but not more than once each.
+
+        Args:
+            line: The full zone definition line.
+
+        Returns:
+            A dict with any of ``zone_type``, ``zone_color``,
+            ``max_drones`` set, ready to be passed as ``ZoneModel``
+            kwargs.
+
+        Raises:
+            FileError: If a key=value pair is malformed, an unknown key
+                is used, an invalid zone type is given, a non-integer
+                ``max_drones`` is given, or any key is duplicated.
+        """
+
         metadata: dict[str, Any] = {}
         valid_keys: set[str] = {"zone", "color", "max_drones"}
         valid_types: set[str] = {"normal", "blocked", "restricted", "priority"}
@@ -127,6 +190,22 @@ class Parser:
 
     @classmethod
     def parse_zone_maindata(cls, line: str) -> dict[str, Any]:
+        """Parse a zone definition line's tag, name and coordinates.
+
+        Args:
+            line: The full zone definition line
+                (``hub_tag: <name> <x> <y> [metadata]``).
+
+        Returns:
+            A dict with ``name`` and ``coordinates`` set, ready to be
+            merged with metadata and passed as ``ZoneModel`` kwargs.
+
+        Raises:
+            FileError: If the hub tag isn't one of ``hub:``,
+                ``start_hub:``, ``end_hub:``, or the coordinates aren't
+                valid integers.
+        """
+
         maindata: dict[str, Any] = {}
         valid_hub_tags: set[str] = {"hub:", "start_hub:", "end_hub:"}
         raw_maindata: str = cls.get_maindata("zone", line)
@@ -152,6 +231,21 @@ class Parser:
 
     @classmethod
     def parse_connection_maindata(cls, line: str) -> dict[str, Any]:
+        """Parse a connection definition line's two zone names.
+
+        Args:
+            line: The full connection definition line
+                (``connection: <name1>-<name2> [metadata]``).
+
+        Returns:
+            A dict with ``zone1`` and ``zone2`` set, ready to be merged
+            with metadata and passed as ``ConnectionModel`` kwargs.
+
+        Raises:
+            FileError: If the line doesn't start with ``connection:``,
+                or the zone pair isn't in ``<name1>-<name2>`` form.
+        """
+
         maindata: dict[str, Any] = {}
         raw_maindata: str = cls.get_maindata("connection", line)
 
@@ -174,6 +268,23 @@ class Parser:
 
     @classmethod
     def parse_connection_metadata(cls, line: str) -> dict[str, Any]:
+        """Parse a connection definition line's ``[key=value ...]``
+        metadata into a kwargs dict ready to build a ``ConnectionModel``.
+
+        The only recognised key is ``max_link_capacity``.
+
+        Args:
+            line: The full connection definition line.
+
+        Returns:
+            A dict with ``max_link_capacity`` set if present.
+
+        Raises:
+            FileError: If a key=value pair is malformed, an unknown key
+                is used, the capacity isn't a positive integer, or the
+                key is duplicated.
+        """
+
         metadata: dict[str, Any] = {}
         raw_metadata: str = cls.get_metadata(line)[1:-1]
 
@@ -208,6 +319,23 @@ class Parser:
 
     @classmethod
     def parse(cls) -> tuple[dict[str, bool], Map | None]:
+        """Parse ``sys.argv`` into CLI flags and a parsed map.
+
+        Expects exactly one ``.txt`` map file path among the arguments,
+        plus any number of recognised boolean flags. Any unrecognised
+        flag is a fatal error. Recognised flags default to ``False`` if
+        not passed.
+
+        Returns:
+            A tuple of (flags dict, parsed Map). The map may be ``None``
+            if the file was empty or contained no usable content.
+
+        Raises:
+            ParserError: If no arguments were given, an unrecognised
+                argument was passed, no map file was given, more than
+                one map file was given, or the map file itself fails to
+                parse or is unsolvable.
+        """
 
         args: list[str] = sys.argv[1:]
         map_path: str | None = None
@@ -250,6 +378,30 @@ class Parser:
 
     @classmethod
     def parse_map(cls, file: str) -> Map | None:
+        """Parse a map file into a fully-built, solvability-checked
+        ``Map``.
+
+        Reads the file line by line, stripping comments (``#`` onward)
+        and blank lines. The first meaningful line must declare
+        ``nb_drones:``; every subsequent line must be a zone
+        (``hub:``/``start_hub:``/``end_hub:``) or connection
+        (``connection:``) definition. After parsing, verifies a path
+        exists from the start hub to the end hub before returning.
+
+        Args:
+            file: Path to the map file to parse.
+
+        Returns:
+            The fully-built ``Map``, or ``None`` if the file contained
+            no usable content.
+
+        Raises:
+            ParserError: If any line fails to parse, any zone/model
+                validation fails, the map itself is structurally
+                invalid, the file cannot be found, or no path exists
+                from the start hub to the end hub.
+        """
+
         line_number: int = 0
         parsed_map: Map | None = None
         max_drones: int = 0

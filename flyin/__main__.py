@@ -3,6 +3,22 @@ from importlib import metadata
 
 
 def check_package(name: str, description: str) -> bool:
+    """Check whether a required third-party package is importable.
+
+    Prints a human-readable status line either way, so the person
+    running the program can see at a glance which dependencies are
+    missing before anything else runs.
+
+    Args:
+        name: The importable module/package name (e.g. ``"pygame"``).
+        description: A short, human-readable description of what the
+            package is used for, shown in the status line.
+
+    Returns:
+        ``True`` if the package is installed and importable, ``False``
+        otherwise.
+    """
+
     try:
         import_module(name)
         version = metadata.version(name)
@@ -36,6 +52,17 @@ from .banner import BANNER # noqa
 
 
 def main() -> None:
+    """Run the full Fly-In pipeline: parse, schedule, simulate, visualize.
+
+    Prints the banner, parses the map file and CLI flags given on the
+    command line, builds the drone fleet, schedules every drone's path,
+    then runs the turn-by-turn CLI simulation and, unless ``--no-gui``
+    was passed, opens the interactive pygame visualization afterward.
+
+    Parsing or scheduling failures are caught, reported to the user, and
+    cause the function to return early without attempting the
+    simulation or visualization steps.
+    """
 
     print(BANNER)
     map: Map | None = None
